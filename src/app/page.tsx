@@ -52,7 +52,7 @@ export default function FaceDetection() {
       const faceDetected = await detectFaceLocally(blob);
       if (faceDetected) {
         console.log('Face detected');
-        return false;
+        
         const visitorImageName = uuidv4();
 
         try {
