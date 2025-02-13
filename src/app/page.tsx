@@ -66,7 +66,7 @@ export default function FaceDetection() {
     
       const faceDetected = await detectFaceLocally(blob); // Check if face is detected
       if (faceDetected) {
-        
+        console.log('face detected');
           // Upload to AWS S3
           await fetch(`https://iti80r2th2.execute-api.us-east-1.amazonaws.com/dev/fixhr-visitor-images/${visitorImageName}.jpg`, {
             method: 'PUT',
