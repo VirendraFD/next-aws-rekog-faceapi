@@ -78,6 +78,7 @@ export default function FaceDetection() {
     
           // Authenticate the visitor
           const response = await authenticate(visitorImageName);
+          console.log('kya bol rha h',response);
           if (response?.Message === 'Success') {
 
             try {//
