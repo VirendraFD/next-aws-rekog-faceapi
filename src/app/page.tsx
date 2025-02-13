@@ -26,8 +26,6 @@ export default function FaceDetection() {
     const loadModels = async () => {
       try {
         await faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/models');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('/face-api/models');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('/face-api/models');
         console.log('Models loaded successfully');
       } catch (error) {
         console.error('Failed to load models:', error);
@@ -113,7 +111,7 @@ export default function FaceDetection() {
           }
         
       } else {
-        setUploadResultMessage('No face detected by face api. Please adjust your position.');
+        setUploadResultMessage('No face detected. Please adjust your position.');
       }
     } catch (error) {
       console.error('Error during face detection or authentication:', error);
@@ -127,7 +125,10 @@ export default function FaceDetection() {
     const image = await blobToImage(imageBlob);
 
     // Detect faces in an image
-    const detections = await faceapi.detectAllFaces(image, new faceapi.TinyFaceDetectorOptions());
+    const detections = await faceapi.detectAllFaces(image, new faceapi.TinyFaceDetectorOptions({
+      inputSize: 160, // Can be 128, 160, 224, or 320 (smaller is faster)
+      scoreThreshold: 0.5,
+    }));
 
     return detections.length > 0;
   };
@@ -179,13 +180,6 @@ export default function FaceDetection() {
       <div className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-4xl grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Left Profile Photo - Larger Size */}
         <div className="flex flex-col items-center sm:items-start sm:col-span-2">
-
-        {!isAuth && (
-        <h3 className="ml-20 text-lg font-semibold text-red-500 mb-2 text-center">
-          Please Look at the Camera
-        </h3>
-      )}
-          
 
           <div className="w-450 h-150 rounded-xl overflow-hidden">
             
