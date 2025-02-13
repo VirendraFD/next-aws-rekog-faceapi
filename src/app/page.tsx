@@ -227,7 +227,9 @@ export default function FaceDetection() {
               <p className="text-base text-gray-900">{address}</p>
             </div>
           </div>
-        </div>): ''}
+        </div>): (<div className="sm:col-span-1 flex flex-col justify-center"><h3 className="text-lg font-semibold text-red-500 mb-2">
+            {uploadResultMessage}
+          </h3></div>)}
         
       </div>
     </div>
