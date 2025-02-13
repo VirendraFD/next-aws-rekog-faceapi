@@ -113,7 +113,7 @@ export default function FaceDetection() {
           }
         
       } else {
-        console.log('No face detected by face api. Please adjust your position.');
+        setUploadResultMessage('No face detected by face api. Please adjust your position.');
       }
     } catch (error) {
       console.error('Error during face detection or authentication:', error);
