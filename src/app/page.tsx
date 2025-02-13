@@ -12,7 +12,6 @@ export default function FaceDetection() {
   const [isAuth, setAuth] = useState(false);
   const [employee, setEmployee] = useState<any>(null);
   const [isTimeout, setTimeoutStatus] = useState(false);
-  const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Load models once
@@ -33,68 +32,72 @@ export default function FaceDetection() {
 
   const captureAndSendImage = useCallback(async () => {
     if (!webcamRef.current || isTimeout) return;
-
+  
     const video = webcamRef.current.video;
     if (!video || video.readyState !== 4) return;
-
+  
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
+  
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Convert image to Blob
+  
     canvas.toBlob(async (blob) => {
       if (!blob) return;
-
+  
       const faceDetected = await detectFaceLocally(blob);
-      if (faceDetected) {
-        console.log('Face detected');
-        
-        const visitorImageName = uuidv4();
-
-        try {
-          // Upload to S3
-          await fetch(`https://iti80r2th2.execute-api.us-east-1.amazonaws.com/dev/fixhr-visitor-images/${visitorImageName}.jpg`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'image/jpeg' },
-            body: blob,
-          });
-
-          // Authenticate user
-          const response = await authenticate(visitorImageName);
-          if (response?.Message === 'Success') {
-            try {
-              const { data: employeeData } = await axios.get(`https://web.fixhr.app/api/face-detection/employee/${response.FaceId}`);
-
-              if (employeeData.status) {
-                setAuth(true);
-                setEmployee(employeeData.data);
-                setUploadResultMessage(employeeData.data.attendance_marked 
+      if (!faceDetected) {
+        setUploadResultMessage('No face detected. Please adjust your position.');
+        return;
+      }
+  
+      console.log('Face detected');
+      const visitorImageName = uuidv4();
+  
+      try {
+        await fetch(`https://iti80r2th2.execute-api.us-east-1.amazonaws.com/dev/fixhr-visitor-images/${visitorImageName}.jpg`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: blob,
+        });
+  
+        const response = await authenticate(visitorImageName);
+        console.log('AWS response:', response);
+  
+        if (response?.Message === 'Success') {
+          try {
+            const { data: employeeData } = await axios.get(`https://web.fixhr.app/api/face-detection/employee/${response.FaceId}`);
+  
+            if (employeeData.status) {
+              setAuth(true);
+              setEmployee(employeeData.data);
+              setUploadResultMessage(
+                employeeData.data.attendance_marked
                   ? `Hi ${employeeData.data.name}, welcome to work!`
                   : `Attendance has already been marked.`
-                );
-              } else {
-                setUploadResultMessage('Employee not found.');
-                setAuth(false);
-              }
-            } catch (error) {
-              console.error('Error calling Laravel API:', error);
+              );
+  
+              // Keep `isAuth` true for at least 5 seconds
+              setTimeout(() => setAuth(false), 5000);
+            } else {
+              setUploadResultMessage('Employee not found.');
+              setAuth(false);
             }
-          } else {
-            setUploadResultMessage('Authentication failed.');
-            setAuth(false);
+          } catch (error) {
+            console.error('Error calling Laravel API:', error);
           }
-        } catch (error) {
-          console.error('Error uploading or authenticating:', error);
+        } else {
+          setUploadResultMessage('Authentication failed.');
+          setAuth(false);
         }
-      } else {
-        setUploadResultMessage('No face detected. Please adjust your position.');
+      } catch (error) {
+        console.error('Error uploading or authenticating:', error);
       }
     }, 'image/jpeg');
   }, [isTimeout]);
+  
 
   const detectFaceLocally = async (imageBlob: Blob) => {
     const image = await blobToImage(imageBlob);
@@ -129,24 +132,18 @@ export default function FaceDetection() {
   };
 
   useEffect(() => {
-    const id = setInterval(() => {
-      if (!isAuth) {
-        captureAndSendImage();
-      }
-    }, 5000); // Capture image every 5 seconds
-
-    setIntervalId(id);
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
+    let timeout: NodeJS.Timeout;
+  
+    const startCapture = async () => {
+      await captureAndSendImage();
+      timeout = setTimeout(startCapture, 4000); // Recapture every 5 seconds
     };
-  }, [isAuth, captureAndSendImage]);
-
-  useEffect(() => {
-    if (isAuth && intervalId) {
-      clearInterval(intervalId);
-    }
-  }, [isAuth, intervalId]);
+  
+    startCapture();
+  
+    return () => clearTimeout(timeout);
+  }, [captureAndSendImage]);
+  
 
   return (
     <div className="flex items-start justify-center min-h-screen p-8 bg-gray-100">
