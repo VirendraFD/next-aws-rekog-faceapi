@@ -11,19 +11,18 @@ export default function FaceDetection() {
   const [uploadResultMessage, setUploadResultMessage] = useState('Please look at the camera');
   const [isAuth, setAuth] = useState(false);
   const [employee, setEmployee] = useState<any>(null);
-  const [isTimeout, setTimeoutStatus] = useState(false);
 
   useEffect(() => {
-    // Load models once
     const loadModels = async () => {
-      await faceapi.tf.setBackend('webgl'); // WebGL for better performance
-      await faceapi.tf.ready(); // Ensure TensorFlow is ready
+      await faceapi.tf.setBackend('webgl');
+      await faceapi.tf.ready();
 
       try {
         await faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/models');
         console.log('Face API models loaded successfully');
       } catch (error) {
         console.error('Failed to load models:', error);
+        setUploadResultMessage('Error loading face detection models.');
       }
     };
 
@@ -31,45 +30,49 @@ export default function FaceDetection() {
   }, []);
 
   const captureAndSendImage = useCallback(async () => {
-    if (!webcamRef.current || isTimeout) return;
-  
+    if (!webcamRef.current) return;
+
     const video = webcamRef.current.video;
     if (!video || video.readyState !== 4) return;
-  
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-  
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  
+
     canvas.toBlob(async (blob) => {
       if (!blob) return;
-  
+
       const faceDetected = await detectFaceLocally(blob);
       if (!faceDetected) {
         setUploadResultMessage('No face detected. Please adjust your position.');
+        setAuth(false);
         return;
       }
-  
-      console.log('Face detected');
+
       const visitorImageName = uuidv4();
-  
+
       try {
+        setUploadResultMessage('Uploading image for verification...');
+
         await fetch(`https://iti80r2th2.execute-api.us-east-1.amazonaws.com/dev/fixhr-visitor-images/${visitorImageName}.jpg`, {
           method: 'PUT',
           headers: { 'Content-Type': 'image/jpeg' },
           body: blob,
         });
-  
+
         const response = await authenticate(visitorImageName);
         console.log('AWS response:', response);
-  
+
         if (response?.Message === 'Success') {
           try {
-            const { data: employeeData } = await axios.get(`https://web.fixhr.app/api/face-detection/employee/${response.FaceId}`);
-  
+            const { data: employeeData } = await axios.get(
+              `https://web.fixhr.app/api/face-detection/employee/${response.FaceId}`
+            );
+
             if (employeeData.status) {
               setAuth(true);
               setEmployee(employeeData.data);
@@ -78,7 +81,7 @@ export default function FaceDetection() {
                   ? `Hi ${employeeData.data.name}, welcome to work!`
                   : `Attendance has already been marked.`
               );
-  
+
               // Keep `isAuth` true for at least 5 seconds
               setTimeout(() => setAuth(false), 5000);
             } else {
@@ -87,22 +90,23 @@ export default function FaceDetection() {
             }
           } catch (error) {
             console.error('Error calling Laravel API:', error);
+            setUploadResultMessage('Error fetching employee details.');
           }
         } else {
-          setUploadResultMessage('Authentication failed.');
+          setUploadResultMessage('Authentication failed. Please try again.');
           setAuth(false);
         }
       } catch (error) {
         console.error('Error uploading or authenticating:', error);
+        setUploadResultMessage('Error processing image. Please try again.');
       }
     }, 'image/jpeg');
-  }, [isTimeout]);
-  
+  }, []);
 
   const detectFaceLocally = async (imageBlob: Blob) => {
     const image = await blobToImage(imageBlob);
     const detections = await faceapi.detectAllFaces(image, new faceapi.TinyFaceDetectorOptions({
-      inputSize: 128, // Faster than 160
+      inputSize: 128,
       scoreThreshold: 0.5,
     }));
 
@@ -111,10 +115,10 @@ export default function FaceDetection() {
 
   async function authenticate(visitorImageName: string) {
     try {
-      const response = await fetch(`https://iti80r2th2.execute-api.us-east-1.amazonaws.com/dev/employee?objectKey=${visitorImageName}.jpg`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      });
+      const response = await fetch(
+        `https://iti80r2th2.execute-api.us-east-1.amazonaws.com/dev/employee?objectKey=${visitorImageName}.jpg`,
+        { method: 'GET', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' } }
+      );
       return await response.json();
     } catch (error) {
       console.error('Error:', error);
@@ -133,17 +137,16 @@ export default function FaceDetection() {
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
-  
+
     const startCapture = async () => {
       await captureAndSendImage();
-      timeout = setTimeout(startCapture, 4000); // Recapture every 5 seconds
+      timeout = setTimeout(startCapture, 4000); // Recapture every 4 seconds
     };
-  
+
     startCapture();
-  
+
     return () => clearTimeout(timeout);
   }, [captureAndSendImage]);
-  
 
   return (
     <div className="flex items-start justify-center min-h-screen p-8 bg-gray-100">
@@ -154,26 +157,43 @@ export default function FaceDetection() {
           </div>
         </div>
 
-        {isAuth ? (
-          <div className="sm:col-span-1 flex flex-col justify-center">
-            <h3 className="text-lg font-semibold text-green-500 mb-2">{uploadResultMessage}</h3>
-            <h2 className="text-2xl font-bold text-gray-800">
-              <span>{employee?.employeeId} -</span> {employee?.name}
-            </h2>
-            <p className="text-sm text-gray-500 mb-4">{employee?.designation}</p>
+        <div className="sm:col-span-1 flex flex-col justify-center">
+          <h3
+            className={`text-lg font-semibold mb-2 ${
+              isAuth ? 'text-green-500' : 'text-red-500'
+            }`}
+          >
+            {uploadResultMessage}
+          </h3>
 
-            <div className="grid grid-cols-1 gap-4">
-              <div><p className="text-sm font-medium text-gray-600">Department</p><p className="text-base text-gray-900">{employee?.department}</p></div>
-              <div><p className="text-sm font-medium text-gray-600">Email</p><p className="text-base text-gray-900">{employee?.email}</p></div>
-              <div><p className="text-sm font-medium text-gray-600">Phone</p><p className="text-base text-gray-900">{employee?.phone}</p></div>
-              <div><p className="text-sm font-medium text-gray-600">Location</p><p className="text-base text-gray-900">{employee?.address}</p></div>
-            </div>
-          </div>
-        ) : (
-          <div className="sm:col-span-1 flex flex-col justify-center">
-            <h3 className="text-lg font-semibold text-red-500 mb-2">{uploadResultMessage}</h3>
-          </div>
-        )}
+          {isAuth && employee && (
+            <>
+              <h2 className="text-2xl font-bold text-gray-800">
+                <span>{employee?.employeeId} -</span> {employee?.name}
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">{employee?.designation}</p>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Department</p>
+                  <p className="text-base text-gray-900">{employee?.department}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Email</p>
+                  <p className="text-base text-gray-900">{employee?.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Phone</p>
+                  <p className="text-base text-gray-900">{employee?.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Location</p>
+                  <p className="text-base text-gray-900">{employee?.address}</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
