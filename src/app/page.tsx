@@ -11,6 +11,7 @@ export default function FaceDetection() {
   const [uploadResultMessage, setUploadResultMessage] = useState('Please look at the camera');
   const [isAuth, setAuth] = useState(false);
   const [employee, setEmployee] = useState<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -81,9 +82,11 @@ export default function FaceDetection() {
                   ? `Hi ${employeeData.data.name}, welcome to work!`
                   : `Attendance has already been marked.`
               );
-
-              // Keep `isAuth` true for at least 5 seconds
-              setTimeout(() => setAuth(false), 5000);
+              if (audioRef.current) {
+                audioRef.current.play().catch((error) => console.error('Audio play error:', error));
+              }
+              // Keep `isAuth` true for at least 10 seconds
+              setTimeout(() => setAuth(false), 10000);
             } else {
               setUploadResultMessage('Employee not found.');
               setAuth(false);
@@ -140,7 +143,7 @@ export default function FaceDetection() {
 
     const startCapture = async () => {
       await captureAndSendImage();
-      timeout = setTimeout(startCapture, 4000); // Recapture every 4 seconds
+      timeout = setTimeout(startCapture, 2000); // Recapture every 4 seconds
     };
 
     startCapture();
@@ -195,6 +198,8 @@ export default function FaceDetection() {
           )}
         </div>
       </div>
+      {/* Audio Element for Playing Sound */}
+      <audio ref={audioRef} src="/Attendance_Welcome.mpeg" preload="auto" />
     </div>
   );
 }
