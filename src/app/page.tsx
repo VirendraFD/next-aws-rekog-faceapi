@@ -161,7 +161,7 @@ export default function FaceDetection() {
 
     const startCapture = async () => {
       await captureAndSendImage();
-      timeout = setTimeout(startCapture, 2000); // Recapture every 4 seconds
+      timeout = setTimeout(startCapture, 5000); // Recapture every 4 seconds
     };
 
     startCapture();
