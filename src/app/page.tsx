@@ -82,9 +82,13 @@ export default function FaceDetection() {
                   ? `Hi ${employeeData.data.name}, welcome to work!`
                   : `Attendance has already been marked.`
               );
-              if (audioRef.current) {
-                audioRef.current.play().catch((error) => console.error('Audio play error:', error));
-              }
+              // if (audioRef.current) {
+              //   audioRef.current.play().catch((error) => console.error('Audio play error:', error));
+              // }
+
+              // Speak the message
+              speakMessage(`Welcome, ${employeeData.data.name}. Your attendance is marked.`);
+
               // Keep `isAuth` true for at least 10 seconds
               setTimeout(() => setAuth(false), 10000);
             } else {
@@ -105,6 +109,20 @@ export default function FaceDetection() {
       }
     }, 'image/jpeg');
   }, []);
+
+
+  // Function to convert text to speech
+  const speakMessage = (message: string) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = 'en-US';
+      utterance.rate = 1; // Adjust speed (1 is normal speed)
+      utterance.pitch = 1; // Adjust pitch (1 is normal pitch)
+      speechSynthesis.speak(utterance);
+    } else {
+      console.warn('Web Speech API is not supported in this browser.');
+    }
+  };
 
   const detectFaceLocally = async (imageBlob: Blob) => {
     const image = await blobToImage(imageBlob);
@@ -199,7 +217,7 @@ export default function FaceDetection() {
         </div>
       </div>
       {/* Audio Element for Playing Sound */}
-      <audio ref={audioRef} src="/Attendance_Welcome.mpeg" preload="auto" />
+      {/* <audio ref={audioRef} src="/Attendance_Welcome.mpeg" preload="auto" /> */}
     </div>
   );
 }
