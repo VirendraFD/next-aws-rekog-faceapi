@@ -11,6 +11,7 @@ export default function FaceDetection() {
   const [uploadResultMessage, setUploadResultMessage] = useState('Please look at the camera');
   const [isAuth, setAuth] = useState(false);
   const [employee, setEmployee] = useState<any>(null);
+  const [prevFace, setPrevFace] = useState(null); // Store previous face position
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -66,10 +67,11 @@ export default function FaceDetection() {
       const faceLive = await detectLiveness(blob);
       if(!faceLive){
         setUploadResultMessage('Liveness check failed. Blink to verify.');
+        setAuth(false);
+        return;
       }else{
         setUploadResultMessage('Liveness check success.');
       }
-      console.log('faceLive: ',faceLive);
 
       const visitorImageName = uuidv4();
 
@@ -175,7 +177,6 @@ export default function FaceDetection() {
     const isLeftEyeOpen = checkEyeOpen(leftEye);
     const isRightEyeOpen = checkEyeOpen(rightEye);
 
-    console.log('isLeftEyeOpen: ',isLeftEyeOpen, 'isRightEyeOpen: ',isRightEyeOpen)
     if (!isLeftEyeOpen && !isRightEyeOpen) {
       // Blink detected when both eyes are closed
       lastBlinkTime = Date.now();
@@ -197,6 +198,21 @@ export default function FaceDetection() {
     const verticalDistance = Math.abs(eye[1].y - eye[5].y);
     const horizontalDistance = Math.abs(eye[0].x - eye[3].x);
     return verticalDistance / horizontalDistance > 0.25; // Threshold for eye openness
+  };
+
+  const checkHeadMovement = (detections: any) => {
+    if (!prevFace) {
+      setPrevFace(detections.detection.box);
+      // return false;
+      return checkHeadMovement(detections);
+    }
+
+    const movement = Math.abs(detections.detection.box.x - prevFace.x) + 
+                     Math.abs(detections.detection.box.y - prevFace.y);
+
+    setPrevFace(detections.detection.box);
+
+    return movement > 10; // Ensure the user moved
   };
 
   async function authenticate(visitorImageName: string) {
