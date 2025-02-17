@@ -17,9 +17,17 @@ export default function FaceDetection() {
     const loadModels = async () => {
       await faceapi.tf.setBackend('webgl');
       await faceapi.tf.ready();
+      
 
       try {
-        await faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/models');
+        // await faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/models');
+        // Load all required models
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri('/face-api/models'),
+        faceapi.nets.faceLandmark68Net.loadFromUri('/face-api/models'), // Load Face Landmark model
+        faceapi.nets.faceExpressionNet.loadFromUri('/face-api/models'), // Load Face Expression model (optional)
+        faceapi.nets.ssdMobilenetv1.loadFromUri('/face-api/models') // Load SSD MobileNet model (optional for better accuracy)
+      ]);
         console.log('Face API models loaded successfully');
       } catch (error) {
         console.error('Failed to load models:', error);
@@ -48,11 +56,20 @@ export default function FaceDetection() {
       if (!blob) return;
 
       const faceDetected = await detectFaceLocally(blob);
+      
       if (!faceDetected) {
         setUploadResultMessage('No face detected. Please adjust your position.');
         setAuth(false);
         return;
       }
+
+      const faceLive = await detectLiveness(blob);
+      if(!faceLive){
+        setUploadResultMessage('Liveness check failed. Blink to verify.');
+      }else{
+        setUploadResultMessage('Liveness check success.');
+      }
+      console.log('faceLive: ',faceLive);
 
       const visitorImageName = uuidv4();
 
@@ -132,6 +149,54 @@ export default function FaceDetection() {
     }));
 
     return detections.length > 0;
+  };
+
+  let lastBlinkTime = 0; // Store last blink timestamp
+  const BLINK_DELAY = 2000; // Minimum delay for detecting a blink (2 sec)
+
+  const detectLiveness = async (imageBlob: Blob) => {
+    const image = await blobToImage(imageBlob);
+    
+    // Detect face with landmarks
+    const detections = await faceapi.detectSingleFace(image, new faceapi.TinyFaceDetectorOptions({
+      inputSize: 128,
+      scoreThreshold: 0.5
+    })).withFaceLandmarks();
+
+    if (!detections) {
+      return false; // No face detected
+    }
+
+    // Get eye positions
+    const leftEye = detections.landmarks.getLeftEye();
+    const rightEye = detections.landmarks.getRightEye();
+
+    // Check if eyes are open
+    const isLeftEyeOpen = checkEyeOpen(leftEye);
+    const isRightEyeOpen = checkEyeOpen(rightEye);
+
+    console.log('isLeftEyeOpen: ',isLeftEyeOpen, 'isRightEyeOpen: ',isRightEyeOpen)
+    if (!isLeftEyeOpen && !isRightEyeOpen) {
+      // Blink detected when both eyes are closed
+      lastBlinkTime = Date.now();
+      return false; // Wait for eye re-opening
+    }
+
+    if (isLeftEyeOpen && isRightEyeOpen) {
+      if (lastBlinkTime > 0 && Date.now() - lastBlinkTime >= BLINK_DELAY) {
+        return true; // Liveness verified after a proper blink
+      }
+    }
+
+    return false; // Not enough proof of liveness yet
+  };
+
+  
+  // Function to check eye openness based on landmark distances
+  const checkEyeOpen = (eye: any) => {
+    const verticalDistance = Math.abs(eye[1].y - eye[5].y);
+    const horizontalDistance = Math.abs(eye[0].x - eye[3].x);
+    return verticalDistance / horizontalDistance > 0.25; // Threshold for eye openness
   };
 
   async function authenticate(visitorImageName: string) {
