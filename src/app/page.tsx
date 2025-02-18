@@ -94,22 +94,19 @@ export default function FaceDetection() {
             );
 
             if (employeeData.status) {
-              setAuth(true);
-              setEmployee(employeeData.data);
-              setUploadResultMessage(
-                employeeData.data.attendance_marked
-                  ? `Hi ${employeeData.data.name}, welcome to work!`
-                  : `Attendance has already been marked.`
-              );
-              // if (audioRef.current) {
-              //   audioRef.current.play().catch((error) => console.error('Audio play error:', error));
-              // }
-
-              // Speak the message
-              speakMessage(`Welcome, ${employeeData.data.name}. Your attendance is marked.`);
-
-              // Keep `isAuth` true for at least 10 seconds
-              setTimeout(() => setAuth(false), 10000);
+              
+              if(employeeData.data.attendance_status){
+                setAuth(true);
+                setEmployee(employeeData.data);
+                setUploadResultMessage(`Welcome ${employeeData.data.name}, ${employeeData.data.attendance_message}`);
+                speakMessage(`Welcome, ${employeeData.data.name}. ${employeeData.data.attendance_message}`);
+                setTimeout(() => setAuth(false), 10000); // Keep `isAuth` true for at least 10 seconds
+              }else{
+                setAuth(false);
+                setUploadResultMessage(`Hi ${employeeData.data.name}, ${employeeData.data.attendance_message}`);
+                speakMessage(`Hi, ${employeeData.data.name}. ${employeeData.data.attendance_message}`);
+              } 
+              
             } else {
               setUploadResultMessage('Employee not found.');
               setAuth(false);
