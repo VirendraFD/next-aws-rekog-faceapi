@@ -100,13 +100,12 @@ export default function FaceDetection() {
                 setEmployee(employeeData.data);
                 setUploadResultMessage(`Welcome ${employeeData.data.name}, ${employeeData.data.attendance_message}`);
                 speakMessage(`Welcome, ${employeeData.data.name}. ${employeeData.data.attendance_message}`);
-                setTimeout(() => setAuth(false), 10000); // Keep `isAuth` true for at least 10 seconds
               }else{
                 setAuth(false);
                 setUploadResultMessage(`Hi ${employeeData.data.name}, ${employeeData.data.attendance_message}`);
                 speakMessage(`Hi, ${employeeData.data.name}. ${employeeData.data.attendance_message}`);
               } 
-              
+              setTimeout(() => setAuth(false), 10000); // Keep `isAuth` true for at least 10 seconds
             } else {
               setUploadResultMessage('Employee not found.');
               setAuth(false);
