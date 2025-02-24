@@ -1,10 +1,9 @@
 import { connectDB } from "@/app/lib/mongodb";
 import User from "@/app/models/User";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
+import { generateToken } from "@/app/utils/auth";
 
-const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function POST(req: Request) {
   try {
@@ -23,10 +22,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 400 });
     }
 
-    // Generate JWT Token
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "1h" });
+    const token = generateToken(user._id, user.email);
 
-    return NextResponse.json({ token }, { status: 200 });
+      // Create a response with the token
+    const response = NextResponse.json({
+      message: 'Login Successfully!',
+      status: true,
+      user: {
+        _id: user._id,
+        email: user.email,
+      },
+    });
+
+    // Set the token in a cookie or header (optional)
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      //secure: process.env.NODE_ENV === 'production',
+      maxAge: 86400, // 1 day in seconds
+    });
+
+
+    return response;
+
   } catch (error) {
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }

@@ -5,12 +5,17 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-
     await connectDB();
 
-    const {business_unique_id, username, email, password } = await req.json();
-    
-     console.log(business_unique_id, username, email, password);
+    // Extracting request body
+    const { business_unique_id, username, email, password } = await req.json();
+
+    // Validate required fields
+    if (!business_unique_id || !username || !email || !password) {
+      return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+    }
+
+    console.log("Received Data:", { business_unique_id, username, email, password });
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -27,7 +32,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ message: "User registered successfully" }, { status: 201 });
   } catch (error) {
-    console.log(error);
+    console.error("Signup Error:", error);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }
