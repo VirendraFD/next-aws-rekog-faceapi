@@ -11,7 +11,8 @@ export default function FaceDetection() {
   const [uploadResultMessage, setUploadResultMessage] = useState('Please look at the camera');
   const [isAuth, setAuth] = useState(false);
   const [employee, setEmployee] = useState<any>(null);
-  const [prevFace, setPrevFace] = useState(null); // Store previous face position
+  const [prevFace, setPrevFace] = useState<{ x: number; y: number } | null>(null);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
